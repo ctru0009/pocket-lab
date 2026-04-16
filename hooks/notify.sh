@@ -22,6 +22,16 @@ if [[ -f "$CONFIG_FILE" ]]; then
   source "$CONFIG_FILE"
 fi
 
+if ! command -v jq &>/dev/null; then
+  echo "[ERROR] jq is required for pocket-lab notifications" >&2
+  exit 1
+fi
+
+if ! command -v curl &>/dev/null; then
+  echo "[ERROR] curl not found — cannot send notification" >&2
+  exit 1
+fi
+
 # Provider — telegram or ntfy
 NOTIFY_PROVIDER="${NOTIFY_PROVIDER:-ntfy}"
 
@@ -47,6 +57,7 @@ RATE_LIMIT_SECS="${RATE_LIMIT_SECS:-10}"
 # ---------------------------------------------------------------------------
 log() {
   local level="$1"; shift
+  mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $*" >> "$LOG_FILE" 2>/dev/null || true
 }
 
@@ -111,14 +122,12 @@ PROJECT_NAME=""
 MESSAGE=""
 HOOK_TITLE=""
 
-if command -v jq &>/dev/null && [[ -n "$INPUT" ]]; then
+if [[ -n "$INPUT" ]]; then
   PROJECT_DIR=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || echo "")
   [[ -n "$PROJECT_DIR" ]] && PROJECT_DIR=$(echo "$PROJECT_DIR" | tr '\\' '/')
   MESSAGE=$(echo "$INPUT" | jq -r '.message // empty' 2>/dev/null || echo "")
   HOOK_TITLE=$(echo "$INPUT" | jq -r '.title // empty' 2>/dev/null || echo "")
   [[ -n "$PROJECT_DIR" ]] && PROJECT_NAME=$(basename "$PROJECT_DIR" 2>/dev/null || echo "")
-else
-  log "WARN" "jq not found — limited notification context"
 fi
 
 # ---------------------------------------------------------------------------
@@ -174,7 +183,9 @@ esac
 # ---------------------------------------------------------------------------
 # Rate limiting
 # ---------------------------------------------------------------------------
-RATE_KEY="${NOTIFY_PROVIDER}-${NTFY_TOPIC:-tg}-${PROJECT_NAME//[^a-zA-Z0-9]/_}"
+SAFE_PROJECT_NAME="${PROJECT_NAME//[^a-zA-Z0-9]/_}"
+[[ -n "$SAFE_PROJECT_NAME" ]] || SAFE_PROJECT_NAME="unknown"
+RATE_KEY="${NOTIFY_PROVIDER}-${NTFY_TOPIC:-tg}-${SAFE_PROJECT_NAME}"
 RATE_FILE="/tmp/pocket-lab-rate-${RATE_KEY}"
 
 should_rate_limit() {
@@ -232,20 +243,12 @@ send_telegram() {
   [[ "$TELEGRAM_SILENT" == "true" ]] && silent="true"
   [[ "$HOOK_ARG" == "Stop" && "$TELEGRAM_SILENT_ON_STOP" == "true" ]] && silent="true"
 
-  # Build JSON safely — use jq when available, sed fallback otherwise
   local payload
-  if command -v jq &>/dev/null; then
-    payload=$(jq -n \
-      --arg chat_id "$TELEGRAM_CHAT_ID" \
-      --arg text "$text" \
-      --argjson silent "$silent" \
-      '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_notification: $silent}')
-  else
-    payload=$(printf '{"chat_id":"%s","text":"%s","parse_mode":"HTML","disable_notification":%s}' \
-      "$TELEGRAM_CHAT_ID" \
-      "$(echo "$text" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')" \
-      "$silent")
-  fi
+  payload=$(jq -n \
+    --arg chat_id "$TELEGRAM_CHAT_ID" \
+    --arg text "$text" \
+    --argjson silent "$silent" \
+    '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_notification: $silent}')
 
   local response
   if response=$(curl -s --max-time 10 --retry 2 --retry-delay 2 \

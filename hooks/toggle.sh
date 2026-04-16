@@ -14,6 +14,10 @@ set -euo pipefail
 CONFIG_FILE="${POCKET_LAB_CONFIG:-$HOME/.config/pocket-lab/config}"
 NOTIFY_ENABLED_FILE="${NOTIFY_ENABLED_FILE:-$HOME/.config/pocket-lab/enabled}"
 
+ensure_parent_dir() {
+  mkdir -p "$(dirname "$NOTIFY_ENABLED_FILE")" 2>/dev/null || true
+}
+
 # Load config if it exists (may override NOTIFY_ENABLED_FILE)
 if [[ -f "$CONFIG_FILE" ]]; then
   # shellcheck source=/dev/null
@@ -28,6 +32,7 @@ cmd="${1:-status}"
 
 case "$cmd" in
   on|enable)
+    ensure_parent_dir
     touch "$NOTIFY_ENABLED_FILE"
     echo "✅ Pocket Lab notifications ON"
     ;;
@@ -42,6 +47,7 @@ case "$cmd" in
       rm -f "$NOTIFY_ENABLED_FILE"
       echo "🔕 Pocket Lab notifications OFF"
     else
+      ensure_parent_dir
       touch "$NOTIFY_ENABLED_FILE"
       echo "✅ Pocket Lab notifications ON"
     fi

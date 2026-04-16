@@ -45,7 +45,11 @@ BIN_DIR="$HOME/.local/bin"
 NOTIFY_HOOK="$HOOKS_DIR/notify.sh"
 TOGGLE_SCRIPT="$BIN_DIR/pocket-lab"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+  SCRIPT_DIR=""
+fi
 
 # ---------------------------------------------------------------------------
 # Args
@@ -92,11 +96,7 @@ check_deps() {
 
   command -v curl &>/dev/null || missing+=("curl")
   command -v bash &>/dev/null || missing+=("bash")
-
-  if ! command -v jq &>/dev/null; then
-    warn "jq not found — notifications will work but without rich context (project name, message preview)"
-    warn "Install jq: $(jq_install_hint)"
-  fi
+  command -v jq &>/dev/null || missing+=("jq")
 
   if [[ ${#missing[@]} -gt 0 ]]; then
     fatal "Missing required dependencies: ${missing[*]}. Please install them and re-run."
@@ -139,10 +139,15 @@ do_uninstall() {
     if command -v jq &>/dev/null; then
       local tmp
       tmp=$(mktemp)
-      jq 'del(.hooks.Notification, .hooks.Stop, .hooks.SubagentStop) |
+      if jq 'del(.hooks.Notification, .hooks.Stop, .hooks.SubagentStop) |
           if .hooks == {} then del(.hooks) else . end' \
-        "$claude_settings" > "$tmp" && mv "$tmp" "$claude_settings"
-      success "Removed pocket-lab hooks from Claude Code settings."
+        "$claude_settings" > "$tmp"; then
+        mv "$tmp" "$claude_settings"
+        success "Removed pocket-lab hooks from Claude Code settings."
+      else
+        rm -f "$tmp"
+        fatal "Failed to update $claude_settings."
+      fi
     else
       warn "jq not found — please manually remove pocket-lab hook entries from $claude_settings"
     fi
@@ -245,10 +250,8 @@ gather_config() {
 
     # Auto-fetch chat ID
     local fetched_id=""
-    if command -v curl &>/dev/null && command -v jq &>/dev/null; then
-      fetched_id=$(curl -s "https://api.telegram.org/bot${telegram_bot_token}/getUpdates" \
-        | jq -r '.result[-1].message.chat.id // empty' 2>/dev/null || true)
-    fi
+    fetched_id=$(curl -s "https://api.telegram.org/bot${telegram_bot_token}/getUpdates" \
+      | jq -r '.result[-1].message.chat.id // empty' 2>/dev/null || true)
 
     if [[ -n "$fetched_id" ]]; then
       success "Auto-detected chat ID: $fetched_id"
@@ -305,13 +308,19 @@ gather_config() {
   # ── Shared: Hook selection ───────────────────────────────────────────────
   echo ""
   local notify_on_stop="y"
-  prompt_yn "  Notify when task finishes (Stop hook)?" "y" && notify_on_stop="y" || notify_on_stop="n"
+  if ! prompt_yn "  Notify when task finishes (Stop hook)?" "y"; then
+    notify_on_stop="n"
+  fi
 
   local notify_on_input="y"
-  prompt_yn "  Notify when Claude needs input (Notification hook)?" "y" && notify_on_input="y" || notify_on_input="n"
+  if ! prompt_yn "  Notify when Claude needs input (Notification hook)?" "y"; then
+    notify_on_input="n"
+  fi
 
   local notify_on_subagent="n"
-  prompt_yn "  Notify on sub-agent completion (SubagentStop hook)?" "n" && notify_on_subagent="y" || notify_on_subagent="n"
+  if prompt_yn "  Notify on sub-agent completion (SubagentStop hook)?" "n"; then
+    notify_on_subagent="y"
+  fi
 
   # ── Write config ─────────────────────────────────────────────────────────
   mkdir -p "$INSTALL_DIR"
@@ -365,8 +374,13 @@ install_hooks() {
   mkdir -p "$HOOKS_DIR"
 
   # Copy from local repo if running from the cloned dir, else download
-  local notify_src="$SCRIPT_DIR/hooks/notify.sh"
-  local toggle_src="$SCRIPT_DIR/hooks/toggle.sh"
+  local notify_src=""
+  local toggle_src=""
+
+  if [[ -n "$SCRIPT_DIR" ]]; then
+    notify_src="$SCRIPT_DIR/hooks/notify.sh"
+    toggle_src="$SCRIPT_DIR/hooks/toggle.sh"
+  fi
 
   if [[ -f "$notify_src" ]]; then
     cp "$notify_src" "$NOTIFY_HOOK"

@@ -101,6 +101,8 @@ Run the Bash installer directly from GitHub:
 curl -fsSL https://raw.githubusercontent.com/ctru0009/pocket-lab/main/install.sh | bash
 ```
 
+The Bash installer now requires `jq` on Linux and macOS. If it is not already installed, add it first with your package manager before running the installer.
+
 If you cloned the repo locally, you can also run:
 
 ```bash
@@ -139,6 +141,7 @@ The installers will:
 - prompt you for Telegram or ntfy where supported
 - install the hook scripts into the local config folder
 - register hooks with Claude Code when Claude is detected
+- support pipe-based Bash installation from GitHub without the `BASH_SOURCE[0]` crash
 
 Windows native support uses Telegram only. ntfy remains Linux and macOS only in this repo.
 
@@ -213,3 +216,4 @@ hooks/
 - The Windows native path uses Telegram only.
 - ntfy works well if you already run your own server or want a quick public topic-based setup, but it is limited to Linux and macOS here.
 - Notifications are disabled by removing the `enabled` file; they are re-enabled by creating it again.
+- The Bash path uses `jq` for config parsing and Telegram payload handling.
