@@ -169,16 +169,21 @@ prompt() {
   local prompt_text="$2"
   local default="${3:-}"
   local value=""
+  local prompt_input="/dev/tty"
+
+  if [[ ! -r "$prompt_input" ]]; then
+    prompt_input="/dev/stdin"
+  fi
 
   if [[ "$SKIP_PROMPTS" == "true" && -n "$default" ]]; then
     value="$default"
   else
     if [[ -n "$default" ]]; then
-      read -rp "$(echo -e "${prompt_text} ${YELLOW}[$default]${RESET}: ")" value
+      read -rp "$(echo -e "${prompt_text} ${YELLOW}[$default]${RESET}: ")" value < "$prompt_input"
       value="${value:-$default}"
     else
       while [[ -z "$value" ]]; do
-        read -rp "$(echo -e "${prompt_text}: ")" value
+        read -rp "$(echo -e "${prompt_text}: ")" value < "$prompt_input"
         [[ -z "$value" ]] && warn "This field is required."
       done
     fi
@@ -191,11 +196,16 @@ prompt_yn() {
   local prompt_text="$1"
   local default="${2:-n}"
   local answer=""
+  local prompt_input="/dev/tty"
+
+  if [[ ! -r "$prompt_input" ]]; then
+    prompt_input="/dev/stdin"
+  fi
 
   if [[ "$SKIP_PROMPTS" == "true" ]]; then
     answer="$default"
   else
-    read -rp "$(echo -e "${prompt_text} ${YELLOW}[y/N]${RESET}: ")" answer
+    read -rp "$(echo -e "${prompt_text} ${YELLOW}[y/N]${RESET}: ")" answer < "$prompt_input"
     answer="${answer:-$default}"
   fi
 
