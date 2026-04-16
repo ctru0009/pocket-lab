@@ -479,7 +479,6 @@ register_claude_code_hooks() {
   local hook_notification="${_HOOK_NOTIFICATION:-y}"
   local hook_subagent="${_HOOK_SUBAGENT:-n}"
 
-  local hook_cmd="\"$NOTIFY_HOOK\""
   local tmp
   tmp=$(mktemp)
 
@@ -487,22 +486,22 @@ register_claude_code_hooks() {
   local jq_expr='. '
 
   if [[ "$hook_notification" == "y" ]]; then
-    jq_expr+='| .hooks.Notification = [{"matcher": "", "hooks": [{"type": "command", "command": '"$hook_cmd"' + " Notification"}]}] '
+    jq_expr+='| .hooks.Notification = [{"matcher": "", "hooks": [{"type": "command", "command": $notify_hook + " Notification"}]}] '
   fi
 
   if [[ "$hook_stop" == "y" ]]; then
-    jq_expr+='| .hooks.Stop = [{"matcher": "", "hooks": [{"type": "command", "command": '"$hook_cmd"' + " Stop"}]}] '
+    jq_expr+='| .hooks.Stop = [{"matcher": "", "hooks": [{"type": "command", "command": $notify_hook + " Stop"}]}] '
   fi
 
   if [[ "$hook_subagent" == "y" ]]; then
-    jq_expr+='| .hooks.SubagentStop = [{"matcher": "", "hooks": [{"type": "command", "command": '"$hook_cmd"' + " SubagentStop"}]}] '
+    jq_expr+='| .hooks.SubagentStop = [{"matcher": "", "hooks": [{"type": "command", "command": $notify_hook + " SubagentStop"}]}] '
   fi
 
   # Backup existing settings
   cp "$settings" "${settings}.pocket-lab.bak"
   info "Backed up existing settings to ${settings}.pocket-lab.bak"
 
-  jq "$jq_expr" "$settings" > "$tmp" && mv "$tmp" "$settings"
+  jq --arg notify_hook "$NOTIFY_HOOK" "$jq_expr" "$settings" > "$tmp" && mv "$tmp" "$settings"
   success "Claude Code hooks registered in $settings"
 }
 
