@@ -486,15 +486,15 @@ register_claude_code_hooks() {
   local jq_expr='. '
 
   if [[ "$hook_notification" == "y" ]]; then
-    jq_expr+='| .hooks.Notification = [{"matcher": "", "hooks": [{"type": "command", "command": $notify_hook + " Notification"}]}] '
+    jq_expr+='| .hooks.Notification = [{"matcher": "", "hooks": [{"type": "command", "command": ($notify_hook + " Notification")}]}] '
   fi
 
   if [[ "$hook_stop" == "y" ]]; then
-    jq_expr+='| .hooks.Stop = [{"matcher": "", "hooks": [{"type": "command", "command": $notify_hook + " Stop"}]}] '
+    jq_expr+='| .hooks.Stop = [{"matcher": "", "hooks": [{"type": "command", "command": ($notify_hook + " Stop")}]}] '
   fi
 
   if [[ "$hook_subagent" == "y" ]]; then
-    jq_expr+='| .hooks.SubagentStop = [{"matcher": "", "hooks": [{"type": "command", "command": $notify_hook + " SubagentStop"}]}] '
+    jq_expr+='| .hooks.SubagentStop = [{"matcher": "", "hooks": [{"type": "command", "command": ($notify_hook + " SubagentStop")}]}] '
   fi
 
   # Backup existing settings
