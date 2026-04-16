@@ -108,7 +108,7 @@ function Get-LocalOrRemoteFile {
 function Save-Config {
   param([hashtable]$Data)
   $Data | ConvertTo-Json -Depth 10 | Set-Content -Path $ConfigFile -Encoding UTF8
-  [System.IO.File]::WriteAllText($EnabledFile, '')
+  [System.IO.File]::WriteAllText($EnabledFile, '', [System.Text.UTF8Encoding]::new($false))
   Set-Content -Path $LogFile -Value '' -Encoding UTF8 -ErrorAction SilentlyContinue
   Write-Success "Config written to $ConfigFile"
 }
@@ -211,7 +211,7 @@ function Register-ClaudeHooks {
 
   Ensure-Directory (Split-Path $ClaudeSettings -Parent)
 
-  $hookCommandBase = "pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$NotifyHookPath`""
+  $hookCommandBase = 'pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $NotifyHookPath
 
   $hookMap = @{}
   if ($Config.NotifyOnNotification) {

@@ -10,6 +10,12 @@ $InstallRoot = Join-Path $env:LOCALAPPDATA 'pocket-lab'
 $ConfigFile = Join-Path $InstallRoot 'config.json'
 $EnabledFile = Join-Path $InstallRoot 'enabled'
 
+function Ensure-InstallRoot {
+  if (-not (Test-Path $InstallRoot)) {
+    New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
+  }
+}
+
 function Read-Config {
   if (Test-Path $ConfigFile) {
     return Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
@@ -29,10 +35,12 @@ function Test-Enabled {
 
 switch ($Action.ToLowerInvariant()) {
   'on' {
+    Ensure-InstallRoot
     New-Item -ItemType File -Path $EnabledFile -Force | Out-Null
     Write-Host 'Pocket Lab notifications ON'
   }
   'enable' {
+    Ensure-InstallRoot
     New-Item -ItemType File -Path $EnabledFile -Force | Out-Null
     Write-Host 'Pocket Lab notifications ON'
   }
@@ -49,6 +57,7 @@ switch ($Action.ToLowerInvariant()) {
       Remove-Item -Path $EnabledFile -Force -ErrorAction SilentlyContinue
       Write-Host 'Pocket Lab notifications OFF'
     } else {
+      Ensure-InstallRoot
       New-Item -ItemType File -Path $EnabledFile -Force | Out-Null
       Write-Host 'Pocket Lab notifications ON'
     }
@@ -58,6 +67,7 @@ switch ($Action.ToLowerInvariant()) {
       Remove-Item -Path $EnabledFile -Force -ErrorAction SilentlyContinue
       Write-Host 'Pocket Lab notifications OFF'
     } else {
+      Ensure-InstallRoot
       New-Item -ItemType File -Path $EnabledFile -Force | Out-Null
       Write-Host 'Pocket Lab notifications ON'
     }

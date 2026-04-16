@@ -18,7 +18,11 @@ function Write-Log {
   )
 
   $line = "[{0}] [{1}] {2}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
-  Add-Content -Path $LogFile -Value $line -ErrorAction SilentlyContinue
+  $logDir = Split-Path -Path $LogFile -Parent
+  if (-not (Test-Path $logDir)) {
+    New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+  }
+  Add-Content -Path $LogFile -Value $line -Encoding UTF8 -ErrorAction SilentlyContinue
 }
 
 function Read-Config {
